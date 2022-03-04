@@ -19,9 +19,34 @@
 clear variables
 close all
 
-load('MT063_20190910_FRA_OptoStim_03.mat');
-load('MT063_20190910_RedCells_SlopeRemoval_Movie.mat');
-load('F_MT063_20190910MT063_tifStacks_plane1_proc.mat');
+load('ImagingDatasetsAndCorrespondingInfo_DirectlyFromExpts/MT063_20190822_FRA_OptoStim_03.mat');
+load('ImagingDatasetsAndCorrespondingInfo_DirectlyFromExpts/MT063_20190822_RedCells_SlopeRemoval_Movie.mat');
+load('ImagingDatasetsAndCorrespondingInfo_DirectlyFromExpts/F_MT063_20190822MT063_tifStacks_plane1_proc.mat');
+
+dir = '/home/janaki/Dropbox/project_with_melanie/DataForJanaki/Across_many_datasets/som';
+if ~exist(dir)
+    mkdir(dir); 
+    cd(dir); 
+else
+    cd(dir); 
+end
+
+changeNumberOfRepeats = 0;
+if length(calcium.rawTraces)<39100
+    oldCalciumRawTraces = calcium.rawTraces;
+    calcium.rawTraces = zeros(size(calcium.rawTraces,1),39100);
+    calcium.rawTraces(:,1:38100) = oldCalciumRawTraces;
+    calcium.rawTraces(:,38101:39100) = nan;
+    oldCalciumNPilTraces = calcium.npilTraces;
+    calcium.npilTraces = zeros(size(calcium.npilTraces,1),39100);
+    calcium.npilTraces(:,1:38100) = oldCalciumNPilTraces;
+    calcium.npilTraces(:,38101:39100) = nan;
+    oldCalciumNPilSubtraces = calcium.npilSubTraces;
+    calcium.npilSubTraces = zeros(size(calcium.npilSubTraces,1),39100);
+    calcium.npilSubTraces(:,1:38100) = oldCalciumNPilSubtraces;
+    calcium.npilSubTraces(:,38101:39100) = nan;
+    changeNumberOfRepeats = 1;
+end
 
 %% 
 
@@ -194,7 +219,7 @@ repeats=stimInfo.repeats;
 
 % number of components along each dimension of index
 for i=1:size(stimInfo.index,2)
-dim_index(i)=length(unique(stimInfo.index(:,i)));
+    dim_index(i)=length(unique(stimInfo.index(:,i)));
 end
 
 dim_relevant=find(dim_index~=1);
@@ -267,37 +292,74 @@ end
 % tried. 
 
 
-%%%% Option 2 : varying interval then take min of pstat t-test; adapated from
-%%%% above; no correction to t-test because I then take only one window.
+% Option 2 : varying interval then take min of pstat t-test; adapated from
+% above; no correction to t-test because I then take only one window.
 
-Tdelay_test=[0.1:0.03:1.5];
-Tdelay_windur=1; % window duration of 300ms for averaging wih firing rates.
+Tdelay_windur=1; % window duration of 1s for averaging.
+Tdelay_test=[0:0.03:postOnsetTime-Tdelay_windur];
 alpha=0.01;
- 
+if changeNumberOfRepeats
+    repeats=9;
+end
+
 Tdelay=[];
 tstats_time=[];
 pstats_time=[];
 zscore_time=[];
-raster_ordered_poststim = zeros(length(stimInfo.order),size(raster,3));
-av_raster_poststim = zeros(length(stimInfo.index),size(raster,3));
-sem_raster_poststim = zeros(length(stimInfo.index),size(raster,3));
 
+% calculate stats for all cells, all stims, all windows
 for jj=1:size(raster,3)
-    for ii=1:length(stimInfo.index)  
-        % caulculate stats with all Tdelay_test
-        for kk=1:length(Tdelay_test)
-            [tstats_time(ii,jj,kk) pstats_time(ii,jj,kk)]=ttest(nanmean(raster_ordered(repeats*(ii-1)+1:repeats*ii,1:round(fr*preOnsetTime),jj),2),nanmean(raster_ordered(repeats*(ii-1)+1:repeats*ii,round(fr*(preOnsetTime+Tdelay_test(kk))):round(fr*(preOnsetTime+Tdelay_test(kk)+Tdelay_windur)),jj),2),'Alpha',alpha);
-            zscore(ii,jj,kk)=(mean(nanmean(raster_ordered(repeats*(ii-1)+1:repeats*ii,1:round(fr*preOnsetTime),jj),2))-mean(nanmean(raster_ordered(repeats*(ii-1)+1:repeats*ii,round(fr*(preOnsetTime+Tdelay_test(kk))):round(fr*(preOnsetTime+Tdelay_test(kk)+Tdelay_windur)),jj),2)))/sqrt(0.5*(std(nanmean(raster_ordered(repeats*(ii-1)+1:repeats*ii,1:round(fr*preOnsetTime),jj),2))^2+std(nanmean(raster_ordered(repeats*(ii-1)+1:repeats*ii,round(fr*(preOnsetTime+Tdelay_test(kk))):round(fr*(preOnsetTime+Tdelay_test(kk)+Tdelay_windur)),jj),2))^2)^2);
-        end
-        Tdelay(ii,jj)=min(Tdelay_test(find(pstats_time(ii,jj,:)==min(pstats_time(ii,jj,:)))));
-
-        % compute stats, average and std with chosen Tdelay
-        [tstats(ii,jj) pstats(ii,jj)]=ttest(nanmean(raster_ordered(repeats*(ii-1)+1:repeats*ii,1:round(fr*preOnsetTime),jj),2),nanmean(raster_ordered(repeats*(ii-1)+1:repeats*ii,round(fr*(preOnsetTime+Tdelay(ii,jj))):round(fr*(preOnsetTime+Tdelay(ii,jj)+Tdelay_windur)),jj),2),'Alpha',alpha);
-        b2=squeeze(nanmean(raster_ordered(repeats*(ii-1)+1:repeats*ii,round(fr*(preOnsetTime+Tdelay(ii,jj))):round(fr*(preOnsetTime+Tdelay(ii,jj)+Tdelay_windur)),jj),2));
-        raster_ordered_poststim(repeats*(ii-1)+1:repeats*ii,jj) = (b2-nanmean(b2))/abs(nanstd(b2));
-        av_raster_poststim(ii,jj)=nanmean(b2);
-        sem_raster_poststim(ii,jj)=nanstd(b2)/sqrt(repeats);
+for ii=1:length(stimInfo.index)  
+    % calculate stats with all Tdelay_test
+    for kk=1:length(Tdelay_test)
+     [tstats_time(ii,jj,kk) pstats_time(ii,jj,kk)]=ttest(nanmean(raster_ordered((ii-1)*10+1:10*(ii-1)+repeats,1:round(fr*preOnsetTime),jj),2),...
+                                                        nanmean(raster_ordered((ii-1)*10+1:10*(ii-1)+repeats,round(fr*(preOnsetTime+Tdelay_test(kk))):round(fr*(preOnsetTime+Tdelay_test(kk)+Tdelay_windur)),jj),2),'Alpha',alpha);
+     zscore(ii,jj,kk)=(mean(nanmean(raster_ordered((ii-1)*10+1:10*(ii-1)+repeats,1:round(fr*preOnsetTime),jj),2))...
+                        -mean(nanmean(raster_ordered((ii-1)*10+1:10*(ii-1)+repeats,round(fr*(preOnsetTime+Tdelay_test(kk))):round(fr*(preOnsetTime+Tdelay_test(kk)+Tdelay_windur)),jj),2)))...
+                        /sqrt(0.5*(std(nanmean(raster_ordered((ii-1)*10+1:10*(ii-1)+repeats,1:round(fr*preOnsetTime),jj),2))^2+...
+                        std(nanmean(raster_ordered((ii-1)*10+1:10*(ii-1)+repeats,round(fr*(preOnsetTime+Tdelay_test(kk))):round(fr*(preOnsetTime+Tdelay_test(kk)+Tdelay_windur)),jj),2))^2)^2);
+    % average pop response for each time window  
+    b2=squeeze(nanmean(raster_ordered((ii-1)*10+1:10*(ii-1)+repeats,round(fr*(preOnsetTime+Tdelay_test(kk))):round(fr*(preOnsetTime+Tdelay_test(kk)+Tdelay_windur)),jj),2));
+    av_raster_poststim_time(ii,jj,kk)=nanmean(b2);
+    sem_raster_poststim_time(ii,jj,kk)=nanstd(b2)/sqrt(repeats);
     end
+end
+end
+
+% Based on conversation with Melanie, we either consider having the same
+% time delay for all the cells for a given stimulus condition determined 
+% using population analysis or we have varying time delays for each cell
+% per stimulus condition as captured in the variable Tdelay_test.
+
+for kk=1:length(Tdelay_test)
+    Nsignifcells_allstims_time(kk)=length(find(sum(tstats_time(:,:,kk))>=1));
+end
+Tdelay_allstims=Tdelay_test(find(Nsignifcells_allstims_time(:)==max(Nsignifcells_allstims_time(:)),1,'first'));
+
+cm=[0 0 0;
+    1 0.7 0.7;
+    1 0 0];
+
+set(groot,'defaultAxesColorOrder',cm)
+
+figure, 
+hold on, 
+plot(Tdelay_test,Nsignifcells_allstims_time,'b','LineWidth',2)
+plot(Tdelay_allstims,max(Nsignifcells_allstims_time),'bo','LineWidth',2,'MarkerSize',12)
+xlabel('Onset of response window (s)')
+ylabel('Number of significantly responsive cells')
+title({['mouse, - ',num2str(date),' - ',num2str(size(raster,3)),' cells'],...
+    ['Number of signif cells vs onset of time window'],...
+     ['to at least one stim condition stim conditions (blue)'],...
+    ['Window begin = ',num2str(Tdelay_allstims),'s, Number of signif cells = ',num2str(max(Nsignifcells_allstims_time))],...
+    ['Duration window = ',num2str(Tdelay_windur),'s, alpha = ',num2str(alpha)]})
+
+for ii=1:length(stimInfo.index)
+    % compute stats, average and std with chosen Tdelay
+    tstats(ii,:)=tstats_time(ii,:,find(Nsignifcells_allstims_time(:)==max(Nsignifcells_allstims_time(:)),1,'first'));
+    pstats(ii,:)=pstats_time(ii,:,find(Nsignifcells_allstims_time(:)==max(Nsignifcells_allstims_time(:)),1,'first'));
+    av_raster_poststim(ii,:)=av_raster_poststim_time(ii,:,find(Nsignifcells_allstims_time(:)==max(Nsignifcells_allstims_time(:)),1,'first'));
+    sem_raster_poststim(ii,:)=sem_raster_poststim_time(ii,:,find(Nsignifcells_allstims_time(:)==max(Nsignifcells_allstims_time(:)),1,'first'));
 end
 
 for i=1:length(dim_relevant)
@@ -306,7 +368,7 @@ for i=1:length(dim_relevant)
 end
 
 
- %%%%% mark which cells show an activity change, not ordered
+ % mark which cells show an activity change, not ordered
 Cells_ActivityChange=cell(length(stimInfo.index),1);
 Cells_ActivityChange2=zeros(length(stimInfo.index),size(raster,3));
 for kk=1:length(stimInfo.index)
@@ -322,12 +384,20 @@ for kk=1:length(stimInfo.index)
     end
 end
 
+%% Testing the idea of vips being intensity tuned (from Functional response properties of VIP-expressing inhibitory neurons in mouse visual and auditory cortex)
+
+for iRed = 1:length(Ind_cells_red)
+    figure();
+    plot(av_raster_poststim([1,4,7,10,13,16,19],Ind_cells_red(iRed)), 'blue');
+    hold on; 
+    plot(av_raster_poststim([2,5,8,11,14,17,20],Ind_cells_red(iRed)), 'red');
+    plot(av_raster_poststim([3,6,9,12,15,18,21],Ind_cells_red(iRed)), 'black');
+end
 
 %% Sort cells depending on different criteria
 
 
 % modified 2019/09/26 : make cells be only Sound+ or only Sound-
-
 criterion=cell(9,1);
 criterion_short=cell(7,1);
 Ind_CellSelection=cell(9,1);
@@ -352,9 +422,9 @@ end
         if sum(abs(Cells_ActivityChange2(b,jj)))>0
             b1=find(Cells_ActivityChange2(b,jj)~=0);
             c=find(abs(av_raster_poststim(:,jj))==max(abs(av_raster_poststim(b(b1),jj))));
-            if Cells_ActivityChange2(c,jj)==1;
+            if Cells_ActivityChange2(c,jj)==1
                 Ind_CellSelection{3}=union(Ind_CellSelection{3},jj);
-            elseif Cells_ActivityChange2(c,jj)==-1;
+            elseif Cells_ActivityChange2(c,jj)==-1
                 Ind_CellSelection{4}=union(Ind_CellSelection{4},jj);
             end
         end
@@ -375,9 +445,9 @@ end
         if sum(abs(Cells_ActivityChange2(b,jj)))>0
             b1=find(Cells_ActivityChange2(b,jj)~=0);
             c=find(abs(av_raster_poststim(:,jj))==max(abs(av_raster_poststim(b(b1),jj))));
-            if Cells_ActivityChange2(c,jj)==1;
+            if Cells_ActivityChange2(c,jj)==1
             Ind_CellSelection{5}=union(Ind_CellSelection{5},jj);
-            elseif Cells_ActivityChange2(c,jj)==-1;
+            elseif Cells_ActivityChange2(c,jj)==-1
             Ind_CellSelection{6}=union(Ind_CellSelection{6},jj);
             end
         end
@@ -409,6 +479,7 @@ end
     Ind_CellSelection{9}=61;%
     criterion{9} = 'Cell 61';
     
+    disp(size(Ind_CellSelection{5})/size(Ind_CellSelection{6}));
 %% Plot curve cell response vs sound amplitude for stim- responsive-cells
 % figure with overlap individual sound-responsive cell curves, different
 % laser for different panels
@@ -453,8 +524,6 @@ end
 
 
 %% plot cells with their stats in outline
-
-
 
 fig(8)=figure;
  micronsPerPixel=exptInfo.recInfo.micronsPerPixel(1);
@@ -502,8 +571,81 @@ ylabel('Rostral-caudal (pixels)')
         % ['Laser- = blue interior : n = ',num2str(length(Ind_CellSelection{6})), '/', num2str(size(raster,3))], ...
         % ['Red cells = red : n = ',num2str(length(Ind_CellSelection{2})), '/', num2str(size(raster,3))] })
 
-%% Prepping mat file for pca using \delta F/F0 rasters
+%% Sound responsive cell selection based on diff in means of baseline and stim evoked response
+% Melanie's comment -  this is basically what the t-test does, so it is not
+% that different.
 
+close all;
+
+Tdelay_test=[0:0.03:rasterInfo.postOnsetTime-Tdelay_windur];
+ 
+soundMeanTrace_diffs_time=[];
+
+for jj=1:size(raster,3)
+    % caulculate stats with all Tdelay_test
+    for kk=1:length(Tdelay_test)
+        soundMeanTrace_diffs_time(1:7,kk)=abs(nanmean(mean_Trace([1,4,7,10,13,16,19],...
+            round(fr*(preOnsetTime+Tdelay_test(kk))):round(fr*(preOnsetTime+Tdelay_test(kk)))+29,jj),2)-...
+            nanmean(mean_Trace([1,4,7,10,13,16,19],1:round(fr*preOnsetTime),jj),2));
+    end
+    diff_mean_responsive_cells(jj)= max(max(soundMeanTrace_diffs_time,[],2))>0.1;
+end
+
+cellsSoundResponsive = find(diff_mean_responsive_cells==1);
+
+meanResponse_fromMeanTrace = zeros(21,length(cellsSoundResponsive));
+semResponse_fromMeanTrace = zeros(21,length(cellsSoundResponsive));
+for jj=1:length(cellsSoundResponsive)
+    for kk=1:length(Tdelay_test)
+        meanResponse_Tdelay_fromMeanTrace(:,kk)=nanmean(mean_Trace(:,round(fr*(preOnsetTime+Tdelay_test(kk))):round(fr*(preOnsetTime+Tdelay_test(kk)))+29,...
+            cellsSoundResponsive(jj)),2);
+        semResponse_Tdelay_fromMeanTrace(:,kk)=nanstd(mean_Trace(:,round(fr*(preOnsetTime+Tdelay_test(kk))):round(fr*(preOnsetTime+Tdelay_test(kk)))+29,...
+            cellsSoundResponsive(jj)),[],2)/sqrt(29);
+    end
+    [~,index_Tdelay] = max(meanResponse_Tdelay_fromMeanTrace,[],2);
+    for ii=1:21  
+        meanResponse_fromMeanTrace(ii,jj)= meanResponse_Tdelay_fromMeanTrace(ii,index_Tdelay(ii));
+        semResponse_fromMeanTrace(ii,jj)= semResponse_Tdelay_fromMeanTrace(ii,index_Tdelay(ii));
+    end
+end
+
+% After determining sound responsive cells plot response functions using raster_poststim variables
+
+for i=1:length(Ind_CellSelection{3,1})
+    figure();
+    errorbar([0,30,50,60,70,80,90],av_raster_poststim([1,4,7,10,13,16,19],Ind_CellSelection{3,1}(i)),sem_raster_poststim([1,4,7,10,13,16,19],Ind_CellSelection{3,1}(i)));
+    hold on;
+    errorbar([0,30,50,60,70,80,90],av_raster_poststim([2,5,8,11,14,17,20],Ind_CellSelection{3,1}(i)),sem_raster_poststim([2,5,8,11,14,17,20],Ind_CellSelection{3,1}(i)));
+    errorbar([0,30,50,60,70,80,90],av_raster_poststim([3,6,9,12,15,18,21],Ind_CellSelection{3,1}(i)),sem_raster_poststim([3,6,9,12,15,18,21],Ind_CellSelection{3,1}(i)));
+end
+
+% After determining sound responsive cells plot response functions using
+% mean_Trace variables
+
+% for i=1:length(cellsSoundResponsive)
+% figure();
+% errorbar([0,30,50,60,70,80,90],meanResponse_fromMeanTrace([1,4,7,10,13,16,19],i),semResponse_fromMeanTrace([1,4,7,10,13,16,19],i));
+% hold on;
+% errorbar([0,30,50,60,70,80,90],meanResponse_fromMeanTrace([2,5,8,11,14,17,20],i),semResponse_fromMeanTrace([2,5,8,11,14,17,20],i));
+% errorbar([0,30,50,60,70,80,90],meanResponse_fromMeanTrace([3,6,9,12,15,18,21],i),semResponse_fromMeanTrace([3,6,9,12,15,18,21],i));
+% end
+
+% save('MeanTrace_threshold0.6_responseFunctions.mat','cellsSoundResponsive','av_raster_poststim','sem_raster_poststim','meanResponse_fromMeanTrace','semResponse_fromMeanTrace'); 
+
+
+%% Test fitting of sigmoid to one of response functions
+
+x = [0;30;50;60;70;80;90];
+y = av_raster_poststim([1,4,7,10,13,16,19],cellsSoundResponsive(8));
+
+ft = fittype('sigmoid(x,y0,ymax,x0,delta_x)');
+f = fit(x,y,ft,'StartPoint',[y(1),y(end),60,(y(end)-y(1))/50]);
+
+figure();
+plot(f,x,y);
+        
+%% Prepping mat file for pca using \delta F/F0 rasters
+%{
 % Removing nans by interpolating
 
 raster_noNaN = raster;
@@ -539,12 +681,12 @@ for ii = 1:size(raster,1)
     end
 end
 
-raster_smoothed_n_by_ct = zeros(210*181,size(raster,3));
-raster_ordered_smoothed_n_by_ct = zeros(210*181,size(raster,3));
+raster_smoothed_n_by_ct = zeros(210*size(raster,2),size(raster,3));
+raster_ordered_smoothed_n_by_ct = zeros(210*size(raster,2),size(raster,3));
 for i = 1:210
     max_vector = abs(max(smoothed_raster(i,:,:),[],2,'omitnan'));
     % max_vector(max_vector < 1) = 1; % using soft normalization like the paper neural population dynamics during reaching
-    raster_smoothed_n_by_ct((i-1)*181+1:i*181,:) = squeeze(smoothed_raster(i,:,:));%./reshape(max_vector,[1,size(raster,3)]);
+    raster_smoothed_n_by_ct((i-1)*size(raster,2)+1:i*size(raster,2),:) = squeeze(smoothed_raster(i,:,:));%./reshape(max_vector,[1,size(raster,3)]);
 end
 raster_smoothed_n_by_ct = raster_smoothed_n_by_ct-nanmean(raster_smoothed_n_by_ct,1);
 % raster_smoothed_n_by_ct = raster_smoothed_n_by_ct./abs(nanstd(raster_smoothed_n_by_ct,1));
@@ -553,7 +695,7 @@ for i = 1:210
     max_vector = abs(max(smoothed_raster_ordered(i,:,:),[],2,'omitnan'));
     % max_vector(max_vector < 1) = 1; % using soft normalization like the paper neural population dynamics during reaching
     temp = squeeze(smoothed_raster_ordered(i,:,:))./reshape(max_vector,[1,size(raster,3)]);
-    raster_ordered_smoothed_n_by_ct((i-1)*181+1:i*181,:) = squeeze(smoothed_raster_ordered(i,:,:));%./reshape(max_vector,[1,size(raster,3)]);
+    raster_ordered_smoothed_n_by_ct((i-1)*size(raster,2)+1:i*size(raster,2),:) = squeeze(smoothed_raster_ordered(i,:,:));%./reshape(max_vector,[1,size(raster,3)]);
 end
 raster_ordered_smoothed_n_by_ct = raster_ordered_smoothed_n_by_ct-nanmean(raster_ordered_smoothed_n_by_ct,1);
 % raster_ordered_smoothed_n_by_ct = raster_ordered_smoothed_n_by_ct./abs(nanstd(raster_ordered_smoothed_n_by_ct,1));
@@ -565,7 +707,7 @@ raster_ordered_mean_n_by_ct = zeros(prod(size(mean_Trace,1:2)),size(mean_Trace,3
 for i = 1:length(stimInfo.index)
     max_vector = abs(max(mean_Trace(i,:,:),[],2,'omitnan'));
     % max_vector(max_vector < 1) = 1; % using soft normalization like the paper neural population dynamics during reaching
-    raster_ordered_mean_n_by_ct((i-1)*181+1:i*181,:) = squeeze(mean_Trace(i,:,:));%./reshape(max_vector,[1,size(raster,3)]);
+    raster_ordered_mean_n_by_ct((i-1)*size(raster,2)+1:i*size(raster,2),:) = squeeze(mean_Trace(i,:,:));%./reshape(max_vector,[1,size(raster,3)]);
 end
 raster_ordered_mean_n_by_ct = raster_ordered_mean_n_by_ct-nanmean(raster_ordered_mean_n_by_ct,1);
 % raster_ordered_mean_n_by_ct = raster_ordered_mean_n_by_ct./abs(nanstd(raster_ordered_mean_n_by_ct,1));
@@ -583,9 +725,9 @@ end
 for i = 1:length(stimInfo.index)
     max_vector = abs(max(smoothed_mean_Trace(i,:,:),[],2,'omitnan'));
     % max_vector(max_vector < 1) = 1; % using soft normalization like the paper neural population dynamics during reaching
-    raster_ordered_smoothed_mean_n_by_ct((i-1)*181+1:i*181,:) = squeeze(smoothed_mean_Trace(i,:,:));%./reshape(max_vector,[1,size(raster,3)]);
+    raster_ordered_smoothed_mean_n_by_ct((i-1)*size(raster,2)+1:i*size(raster,2),:) = squeeze(smoothed_mean_Trace(i,:,:));%./reshape(max_vector,[1,size(raster,3)]);
 end
-raster_ordered_smoothed_mean_n_by_ct = raster_ordered_smoothed_mean_n_by_ct-nanmean(raster_ordered_smoothed_mean_n_by_ct,1);
+% raster_ordered_smoothed_mean_n_by_ct = raster_ordered_smoothed_mean_n_by_ct-nanmean(raster_ordered_smoothed_mean_n_by_ct,1);
 % raster_ordered_smoothed_mean_n_by_ct = raster_ordered_smoothed_mean_n_by_ct./abs(nanstd(raster_ordered_smoothed_mean_n_by_ct,1));
 
 %% Cell selection using Melanie's test on av_raster
@@ -624,3 +766,4 @@ for jj=1:size(raster,3)
     end
     diff_mean_responsive_cells(jj)= max(mean_Trace_diffs_time(jj,:))>0.1;
 end
+%}
