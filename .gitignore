@@ -1,0 +1,19 @@
+# files to ignore
+
+*.fig
+*.png
+*.mat
+*.xlsx
+*.docx
+*.pptx
+*.pdf
+.DS_Store
+
+# folders to ignore
+
+.ipynb_checkpoints/
+__pycache__
+Across_many_datasets/
+SingleCellFittingPlots-alsoUsedForConferencePosters/
+oldFiles/
+matFilesForMelanie/
