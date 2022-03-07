@@ -1,4 +1,4 @@
-function [raster_ordered mean_Trace std_mean_Trace]=makeOrdRasterAndAveTrace_MT(raster,stimindex,order,repeats)
+function [raster_ordered, mean_Trace, std_mean_Trace]=makeOrdRasterAndAveTrace_MT(raster,stimindex,order,repeats)
 
 % Takes a raster, orders it by stimuli conditions  and outputs the ordered
 % raster, and the average and std of each stimulus condition

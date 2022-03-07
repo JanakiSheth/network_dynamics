@@ -396,7 +396,6 @@ end
 
 %% Sort cells depending on different criteria
 
-
 % modified 2019/09/26 : make cells be only Sound+ or only Sound-
 criterion=cell(9,1);
 criterion_short=cell(7,1);
