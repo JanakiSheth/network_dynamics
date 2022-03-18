@@ -84,12 +84,20 @@ end
 
 %% load activity data
 
+if mouseline == 'SOM'
+    responseFunctionMat = load('/home/janaki/Dropbox/project_with_melanie/DataForJanaki/Across_many_datasets/som/TrialAverageActivityAllCellsPopulationTdelay_Fitting.mat');
+else
+    responseFunctionMat = load('/home/janaki/Dropbox/project_with_melanie/DataForJanaki/Across_many_datasets/vip/TrialAverageActivityAllCellsPopulationTdelay_Fitting.mat');
+end
+num_datasets = size(responseFunctionMat.Ind_CellSelectionIncludingSEM,1);
+
 for j=1:nrec
     folderpath=['/home/janaki/Dropbox/project_with_melanie/DataForJanaki/networkFiles/',mouseline,'_ActivityData/'];
     cd(folderpath)
     activityfile = dir(['workspace_',recname{j},'*.mat']);
     disp(['workspace_',recname{j},'*.mat'])
     recstruct(j,1).activityworkspace=load(activityfile.name);
+    recstruct(j,1).response = responseFunctionMat.Ind_CellSelectionIncludingSEM{j,:};
 end
 
 cd(Pathname) 
@@ -110,40 +118,13 @@ end
 
 Grand_meanrelcoeff = zeros(nrec,3);
 Grand_meannormrelcoeff = zeros(nrec,3);
-Grand_meannormrelcoeff2 = zeros(nrec,3);
-Grand_meannormrelcoeff3 = zeros(nrec,3);
-Grand_meannormrelcoeff4 = zeros(nrec,3);
-Grand_meannormrelcoeff5 = zeros(nrec,3);
-Grand_meannormrelcoeff6 = zeros(nrec,3);
-Grand_meannormrelcoeff7 = zeros(nrec,3);
-Grand_meannormrelcoeff8 = zeros(nrec,3);
 
 for j=1:nrec
     for k=recstruct(j).laserconditions
         % mean relative coff over all subsets, per laser condition k, per recording j
         Grand_meanrelcoeff(j,k)=mean(recstruct(j).coeff{k}.mean_relativecoeff);
         % normalised by 1/nedges
-        Grand_meannormrelcoeff(j,k)=mean(recstruct(j).coeff{k}.mean_relativecoeff/size(recstruct(j).subset{k}.subset,2));
-        % normalised by abs meanrelcoeff of first laser condition
-        Grand_meannormrelcoeff2(j,k)=mean(recstruct(j).coeff{k}.mean_relativecoeff)/abs(mean(recstruct(j).coeff{1}.mean_relativecoeff));
-        %normalisation by norm2 of subset?
-        for i=1:size(recstruct(j).subset{k}.subset,1)
-           recstruct(j).subset{k}.subset_matnorm(i)=norm(recstruct(j).subset{k}.subset(i,:));
-        end    
-        Grand_meannormrelcoeff3(j,k)=mean(recstruct(j).coeff{k}.mean_relativecoeff.*recstruct(j).subset{k}.subset_matnorm');
-        % normalisation by each subset's max weight.
-        for i=1:size(recstruct(j).subset{k}.subset,1)
-           recstruct(j).subset{k}.subset_matnorm2(i)=max(recstruct(j).subset{k}.subset(i,:));
-        end    
-        Grand_meannormrelcoeff4(j,k)=mean(recstruct(j).coeff{k}.mean_relativecoeff.*recstruct(j).subset{k}.subset_matnorm2');
-        % normalisation by max sum weights.  %%%% check indices!! 
-        Grand_meannormrelcoeff5(j,k)=mean(recstruct(j).coeff{k}.mean_relativecoeff*max(sum(recstruct(j).subset{k}.subset,1)));
-        % normalisation by sum max weights.  %%%% check indices!! 
-        Grand_meannormrelcoeff6(j,k)=mean(recstruct(j).coeff{k}.mean_relativecoeff*sum(max(recstruct(j).subset{k}.subset')));
-        % normalisation by n subsets / n edges = nsubsets x mean weight
-        Grand_meannormrelcoeff7(j,k)=mean(recstruct(j).coeff{k}.mean_relativecoeff*(size(recstruct(j).subset{k}.subset,1)/size(recstruct(j).subset{k}.subset,2)));
-        % normalisation by sum over subsets of norm2 of each subset
-        Grand_meannormrelcoeff8(j,k)=mean(recstruct(j).coeff{k}.mean_relativecoeff)*sum(recstruct(j).subset{k}.subset_matnorm);
+        Grand_meannormrelcoeff(j,k)=mean(recstruct(j).coeff{k}.mean_relativecoeff*size(recstruct(j).subset{k}.subset,1)/size(recstruct(j).subset{k}.subset,2));
     end
 end
 
@@ -152,60 +133,18 @@ set(groot,'defaultAxesColorOrder','remove');
 set(groot,'defaultAxesColorOrder',cs);
 
 figure;
-subplot(341); hold on
+subplot(121); hold on
 bar(mean(Grand_meanrelcoeff),'LineWidth',1,'FaceAlpha',0.2)
 plot(Grand_meanrelcoeff','LineWidth',1)
 title('No normalisation')
 legend({'mean', recstruct.recname})
 legend('hide')
-subplot(342); hold on
+subplot(122); hold on
 bar(mean(Grand_meannormrelcoeff),'LineWidth',1,'FaceAlpha',0.2)
 plot(Grand_meannormrelcoeff','LineWidth',1)
 legend({'mean', recstruct.recname})
 legend('hide')
-title({'Normalisation by', 'number of edges'})
-subplot(343); hold on
-bar(mean(Grand_meannormrelcoeff2),'LineWidth',1,'FaceAlpha',0.2)
-plot(Grand_meannormrelcoeff2','LineWidth',1)
-legend({'mean', recstruct.recname})
-legend('hide')
-title({'Normalisation by', 'first laser cond'})
-subplot(344); hold on
-bar(mean(Grand_meannormrelcoeff3),'LineWidth',1,'FaceAlpha',0.2)
-plot(Grand_meannormrelcoeff3','LineWidth',1)
-title({'Normalisation of', 'each subset by norm2'})
-legend({'mean', recstruct.recname})
-legend('hide')
-subplot(345); hold on
-bar(mean(Grand_meannormrelcoeff4),'LineWidth',1,'FaceAlpha',0.2)
-plot(Grand_meannormrelcoeff4','LineWidth',1)
-title({'Normalisation of', 'each subset by max weight'})
-legend({'mean', recstruct.recname})
-legend('hide')
-subplot(346); hold on
-bar(mean(Grand_meannormrelcoeff5),'LineWidth',1,'FaceAlpha',0.2)
-plot(Grand_meannormrelcoeff5','LineWidth',1)
-title({'Normalisation of', 'each subset by max sum weight'})
-legend({'mean', recstruct.recname})
-legend('hide')
-subplot(347); hold on
-bar(mean(Grand_meannormrelcoeff6),'LineWidth',1,'FaceAlpha',0.2)
-plot(Grand_meannormrelcoeff6','LineWidth',1)
-title({'Normalisation of', 'each subset by sum max weight'})
-legend({'mean', recstruct.recname})
-legend('hide')
-subplot(348); hold on
-bar(mean(Grand_meannormrelcoeff7),'LineWidth',1,'FaceAlpha',0.2)
-plot(Grand_meannormrelcoeff7','LineWidth',1)
-title({'Normalisation of', 'n subsets / nedges'})
-legend({'mean', recstruct.recname})
-legend('hide')
-subplot(349); hold on
-bar(mean(Grand_meannormrelcoeff8),'LineWidth',1,'FaceAlpha',0.2)
-plot(Grand_meannormrelcoeff8','LineWidth',1)
-title({'Normalisation by', 'sum over subsets of norm2'})
-legend({'mean', recstruct.recname})
-legend('hide')
+title({'Normalisation by', 'number of edges', 'and number of subsets'})
 
 %% plot distribution of relative coeff weights of all subsets per laser trial
 
@@ -214,7 +153,8 @@ Grand_allsubs_meanrelcoeff=cell(1,3);
 for j=1:nrec
     for k=recstruct(j).laserconditions
         % mean relative coff for all subsets of every recording, per laser condition k
-        Grand_allsubs_meanrelcoeff{k}=[Grand_allsubs_meanrelcoeff{k}; recstruct(j).coeff{k}.mean_relativecoeff];  
+        Grand_allsubs_meanrelcoeff{k}=[Grand_allsubs_meanrelcoeff{k}; ...
+            recstruct(j).coeff{k}.mean_relativecoeff*size(recstruct(j).subset{k}.subset,1)/size(recstruct(j).subset{k}.subset,2)];  
     end
 end
 
@@ -235,8 +175,65 @@ for i=1:3 % laser conditions
     boxplot(Grand_allsubs_meanrelcoeff{i},{['Laser ',num2str(i)]})
 end
 
+%% plot how relative coeff weights over all subsets change with sound level and light conditions
 
-%% plot distribution of number of subsets per laser
+for j=1:nrec
+    % create raster
+    stimInfo=recstruct(j).activityworkspace.stimInfo;
+    for k=recstruct(j).laserconditions
+        for i=1:size(recstruct(j).coeff{k}.coeff,2)/181
+            coeff_rast(i,1:181,:)=recstruct(j).coeff{k}.coeff(:,181*(i-1)+1:181*i)'; 
+        end
+        index=stimInfo.index(find(stimInfo.index(:,2)==stimInfo.amplitude_opto(k)),:);
+        order=1+floor((stimInfo.order(ismember(stimInfo.order,find(stimInfo.index(:,2)==stimInfo.amplitude_opto(k))))-1)/3);
+        % save ordered raster, mean and std
+        [coeff_rastord, mean_coeff, std_mean_coeff]=makeOrdRasterAndAveTrace_MT(coeff_rast,index,order,stimInfo.repeats);
+        
+        recstruct(j).coeff{k}.coeff_rastord=coeff_rastord;
+        recstruct(j).coeff{k}.mean_coeff=mean_coeff;
+        recstruct(j).coeff{k}.std_mean_coeff=std_mean_coeff;
+        clear coeff_rast coeff_rastord mean_coeff std_mean_coeff;
+    end       
+end
+repeats = 10;
+meanCoeff_SoundAmplitudeVariation = cell(3,1);
+coeffRastord_SoundAmplitudeVariation = cell(3,1);
+soundResponsivenessOfCoeff = cell(3,4);
+
+for k=1:3
+    for j = 1:nrec
+        number_subsets = size(recstruct(j).subset{k}.subset,1);
+        for sub = 1:number_subsets
+            meanCoeff_SoundAmplitudeVariation{k} = [meanCoeff_SoundAmplitudeVariation{k}, ...
+                mean(recstruct(j).coeff{k}.mean_coeff(:,:,sub),2)*size(recstruct(j).subset{k}.subset,1)/size(recstruct(j).subset{k}.subset,2)];
+            raster_ordered = mean(recstruct(j).coeff{k}.coeff_rastord(:,:,sub),2)*size(recstruct(j).subset{k}.subset,1)/size(recstruct(j).subset{k}.subset,2);
+            coeffRastord_SoundAmplitudeVariation{k} = [coeffRastord_SoundAmplitudeVariation{k}, raster_ordered];
+            isCoeffSoundResponsive = zeros(6,1);
+            for amp = 2:7
+                isCoeffSoundResponsive(amp) = ttest(raster_ordered(1:repeats),raster_ordered((amp-1)*10+1:10*(amp-1)+repeats),'Alpha',0.05);
+            end
+            if sum(isCoeffSoundResponsive)>0
+                soundResponsivenessOfCoeff{k,1} = [soundResponsivenessOfCoeff{k,1},j];
+                soundResponsivenessOfCoeff{k,2} = [soundResponsivenessOfCoeff{k,2},sub];
+                %figure;
+                %histogram(recstruct(j).subset{k}.subset(sub,:),20);
+                %plot(1:7,mean(recstruct(j).coeff{k}.mean_coeff(:,:,sub),2)*size(recstruct(j).subset{k}.subset,1)/size(recstruct(j).subset{k}.subset,2));
+            end
+        end
+    end
+end
+
+figure; hold on;
+errorbar(mean(meanCoeff_SoundAmplitudeVariation{1},2),std(meanCoeff_SoundAmplitudeVariation{1},0,2)/sqrt(length(meanCoeff_SoundAmplitudeVariation{1})),'k')
+errorbar(mean(meanCoeff_SoundAmplitudeVariation{2},2),std(meanCoeff_SoundAmplitudeVariation{2},0,2)/sqrt(length(meanCoeff_SoundAmplitudeVariation{2})),'b')
+errorbar(mean(meanCoeff_SoundAmplitudeVariation{3},2),std(meanCoeff_SoundAmplitudeVariation{3},0,2)/sqrt(length(meanCoeff_SoundAmplitudeVariation{3})),'r')
+xlabel('Sound Amplitude');
+xticklabels([0,30,50,60,70,80,90])
+ylabel('Average of mean coeff across subsets and recordings')
+
+%% plot distribution of number of subsets per laser and the clustering weights of the cells in a subset vs the monotonicity of the cells
+% the latter part asks the question of - Is monotonicity responsible for the
+% subset's expressiveness in the presence of sound and light?
 
 for j=1:nrec    
     for k=recstruct(j).laserconditions
@@ -254,6 +251,78 @@ for i=1:3 % laser conditions
         ['mean + SEM = ',num2str(round(mean(Grand_nsubsets(i,:)),1)),' + ',num2str(round(std(Grand_nsubsets(i,:))/sqrt(nrec),1))]})
     xlabel('number of subsets')
     ylabel('count')
+end
+
+% First step is to rearrange subset in matrix form
+%copied from other mat file
+% fill in matrix for every subset - normalise with L2 norm
+
+for j=1:nrec
+    recstruct(j).ncells= 1/2*(1+sqrt(1+8*size(recstruct(j).subset{recstruct(j).laserconditions(1)}.subset,2)));
+    recstruct(j).nedges=size(recstruct(j).subset{laserconditions(1)}.subset,2);
+    for k=recstruct(j).laserconditions
+        for i=1:size(recstruct(j).subset{k}.subset,1) % number of subsets
+            recstruct(j).subset{k}.subset_normL2(i)=norm(recstruct(j).subset{k}.subset(i,:)); % named subset_matnorm in other analysis file
+            B=tril(ones(recstruct(j).ncells),-1);
+            B(B==1)=recstruct(j).subset{k}.subset(i,:);
+            recstruct(j).subset{k}.subset_matnonorm(i,:,:)=B+B';
+            recstruct(j).subset{k}.subset_matnormL2(i,:,:)=recstruct(j).subset{k}.subset_matnonorm(i,:,:)/recstruct(j).subset{k}.subset_normL2(i);
+        end
+    end
+end
+
+for j=1:nrec  
+    [miNoLight, miMidLight, miHighLight] = load_ResponseData(recstruct(j).response);
+    recstruct(j).subset{1}.monotonicity_index = miNoLight;
+    recstruct(j).subset{2}.monotonicity_index = miMidLight;
+    recstruct(j).subset{3}.monotonicity_index = miHighLight;
+    for k=recstruct(j).laserconditions    
+        recstruct(j).subset{k}.clustering_wei=zeros(recstruct(j).ncells,size(recstruct(j).subset{k}.subset,1)); % weighted clustering for all subsets of each laser condition  
+        for sub = 1:size(recstruct(j).subset{k}.subset,1)
+            a=squeeze(recstruct(j).subset{k}.subset_matnonorm(sub,:,:));            
+            % clustering_coeff function gives the clustering per node
+            b=clustering_coef_wu(a);
+            recstruct(j).subset{k}.clustering_wei(:,sub)=b;
+        end
+    end
+end
+
+for k = 1:3
+    for combinations = 1:length(soundResponsivenessOfCoeff{k,1})
+        j = soundResponsivenessOfCoeff{k,1}(combinations);
+        sub = soundResponsivenessOfCoeff{k,2}(combinations);
+        %figure; hold on;
+        %plot(recstruct(j).subset{k}.monotonicity_index,recstruct(j).subset{k}.clustering_wei(:,sub),'.')
+        %plot(recstruct(j).subset{k}.monotonicity_index(recstruct(j).activityworkspace.Ind_cells_red), ...
+        %recstruct(j).subset{k}.clustering_wei(recstruct(j).activityworkspace.Ind_cells_red,sub),'r*')
+        [rho,pval] = corr(recstruct(j).subset{k}.monotonicity_index,recstruct(j).subset{k}.clustering_wei(:,sub),'Type','Spearman');
+        soundResponsivenessOfCoeff{k,3} = [soundResponsivenessOfCoeff{k,3},rho];
+        soundResponsivenessOfCoeff{k,4} = [soundResponsivenessOfCoeff{k,4},pval];
+        if pval<0.05
+            figure;
+            plot(1:7,mean(recstruct(j).coeff{k}.mean_coeff(:,:,sub),2)*size(recstruct(j).subset{k}.subset,1)/size(recstruct(j).subset{k}.subset,2));
+            title(['rho ',num2str(rho),',pval ',num2str(pval)])
+        end
+    end
+end
+
+
+%% plot how subset weights (mean  +/- sem) change with laser conditions based on if the subset coeff means are positive or negative.
+
+for k=1:3
+    figure(); hold on;
+    xlim([0,3]);
+    for j = 1:nrec
+        for sub = 1:length(recstruct(j).coeff{k}.mean_relativecoeff)
+            mean_subset_weight = mean(recstruct(j).subset{k}.subset(sub,:));
+            sem_subset_weight = std(recstruct(j).subset{k}.subset(sub,:))/sqrt(length(recstruct(j).subset{k}.subset(sub,:)));
+            if recstruct(j).coeff{k}.mean_relativecoeff(sub) < 0
+                errorbar(1,mean_subset_weight,sem_subset_weight);
+            else
+                errorbar(2,mean_subset_weight,sem_subset_weight);
+            end
+        end
+    end
 end
 
 %% average nodes and edges per threshold over recordings. For each recording the average is computed over all subsets for each laser condition. 

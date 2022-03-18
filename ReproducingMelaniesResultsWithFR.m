@@ -363,7 +363,7 @@ for ii=1:length(stimInfo.index)
 end
 
 for i=1:length(dim_relevant)
-    [a Ind_sort_poststim{i}]=sort(av_raster_poststim(ind_max_dim_relevant(i),:),'descend');
+    [a, Ind_sort_poststim{i}]=sort(av_raster_poststim(ind_max_dim_relevant(i),:),'descend');
     mean_Trace_ord{i}=mean_Trace(:,:,Ind_sort_poststim{i});
 end
 
@@ -478,7 +478,7 @@ end
     Ind_CellSelection{9}=61;%
     criterion{9} = 'Cell 61';
     
-    disp(size(Ind_CellSelection{5})/size(Ind_CellSelection{6}));
+    fprintf("Ratio of laser +ve cells to laser -ve cells %d",size(Ind_CellSelection{5})/size(Ind_CellSelection{6}));
 %% Plot curve cell response vs sound amplitude for stim- responsive-cells
 % figure with overlap individual sound-responsive cell curves, different
 % laser for different panels
@@ -506,10 +506,10 @@ for q=[1:6]
         subplot(1,dim_index(2)+1,dim_index(2)+1)
         
         for ii=1:dim_index(2) % dim index 2 = laser
-            a=[ii:dim_index(2):length(stimInfo.index)];
+            a=(ii:dim_index(2):length(stimInfo.index));
             hold  on
             if length(Ind_CellSelection{q})>1
-                errorbar(stimInfo.index(a,1),mean(av_raster_poststim(a,Ind_CellSelection{q}),2),std(av_raster_poststim(a,Ind_CellSelection{q})')/sqrt(length(Ind_CellSelection{q})),'Color',(ii-1)/dim_index(2)*[1 1 1])
+                errorbar(stimInfo.index(a,1),mean(av_raster_poststim(a,Ind_CellSelection{q}),2),std(av_raster_poststim(a,Ind_CellSelection{q}),0,2)/sqrt(length(Ind_CellSelection{q})),'Color',(ii-1)/dim_index(2)*[1 1 1])
             else
                 errorbar(stimInfo.index(a,1),av_raster_poststim(a,Ind_CellSelection{q}),sem_raster_poststim(a,Ind_CellSelection{q}),'Color',(ii-1)/dim_index(2)*[1 1 1])
             end

@@ -452,9 +452,9 @@ ylabel('Rostral-caudal (pixels)')
 
 close all
 if mouseline == 'SOM'
-    path_workspace='/home/janaki/Dropbox/project_with_melanie/networkFiles/SOM_ActivityData/';
+    path_workspace='/home/janaki/Dropbox/project_with_melanie/DataForJanaki/networkFiles/SOM_ActivityData/';
 elseif mouseline == 'VIP'
-    path_workspace='/home/janaki/Dropbox/project_with_melanie/networkFiles/VIP_ActivityData/';
+    path_workspace='/home/janaki/Dropbox/project_with_melanie/DataForJanaki/networkFiles/VIP_ActivityData/';
 end
 cd(path_workspace)
 name_workspace=['workspace_',mouse,'_',num2str(date),'_compil',regexprep(datestr(today,'yyyy-mm-dd'),'[-]','')];
